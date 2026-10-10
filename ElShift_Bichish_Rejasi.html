@@ -2,6 +2,14 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
+<meta name="elshift-versiya" content="1791645514">
+<script>
+// Telefon faylga "-1", "-2" qo'shib yuborsa ham: eng yangi versiyani topib, o'shani ochadi
+(function(){var V=1791645514,b="ElShift_Bichish_Rejasi",n=[b+".html"];for(var i=1;i<=30;i++)n.push(b+"-"+i+".html");
+var me=decodeURIComponent(location.pathname.split("/").pop()||""),best=null,bv=V;
+if(location.protocol.indexOf("http")!==0)return;
+Promise.all(n.filter(function(x){return x!==me}).map(function(x){return fetch(x,{headers:{Range:"bytes=0-1500"},cache:"no-store"}).then(function(r){if(!r.ok)return;return r.text().then(function(t){var m=t.slice(0,4000).match(/elshift-versiya" content="(\d+)"/);if(m&&+m[1]>bv){bv=+m[1];best=x}})}).catch(function(){})})).then(function(){if(best)location.replace(best)});})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>ElShift bichish rejasi</title>
 <link rel="manifest" href="manifest.json">
@@ -522,6 +530,8 @@ video {
 }.mx-auto {
   margin-left: auto;
   margin-right: auto;
+}.mb-1 {
+  margin-bottom: 0.25rem;
 }.ml-2 {
   margin-left: 0.5rem;
 }.mt-1 {
@@ -552,6 +562,8 @@ video {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }.grid-cols-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }.flex-col {
   flex-direction: column;
 }.items-end {
@@ -586,6 +598,8 @@ video {
   overflow: hidden;
 }.whitespace-nowrap {
   white-space: nowrap;
+}.break-all {
+  word-break: break-all;
 }.rounded-full {
   border-radius: 9999px;
 }.rounded-lg {
@@ -602,6 +616,8 @@ video {
   padding: 0.5rem;
 }.p-3 {
   padding: 0.75rem;
+}.p-4 {
+  padding: 1rem;
 }.px-1 {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
@@ -18007,6 +18023,53 @@ function pack(items, S, kerf) {
     }
     return best;
 }
+// Oddiy kalkulyator: + − × ÷ %. "100 % 10" = 100 ning 10 foizi = 10. ×, ÷, % avval bajariladi
+function ifodaHisobla(str) {
+    const t = [];
+    const re = /\d+(?:\.\d*)?|\.\d+|[+\u2212×÷%]/g;
+    let m;
+    while ((m = re.exec(str)))
+        t.push(m[0]);
+    let i = 0;
+    const son = () => {
+        let k = t[i];
+        if (k === "\u2212") {
+            i++;
+            return -son();
+        }
+        if (k === undefined || /[+\u2212×÷%]/.test(k))
+            throw new Error("x");
+        i++;
+        return parseFloat(k);
+    };
+    const kopaytma = () => {
+        let v = son();
+        while (t[i] === "×" || t[i] === "÷" || t[i] === "%") {
+            const op = t[i++];
+            const b = son();
+            v = op === "×" ? v * b : op === "÷" ? v / b : (v * b) / 100;
+        }
+        return v;
+    };
+    let v = kopaytma();
+    while (t[i] === "+" || t[i] === "\u2212") {
+        const op = t[i++];
+        const b = kopaytma();
+        v = op === "+" ? v + b : v - b;
+    }
+    if (i !== t.length)
+        throw new Error("x");
+    return v;
+}
+const sonKorinish = (v) => {
+    if (!isFinite(v))
+        return "Xato";
+    const r = Math.round(v * 1e8) / 1e8;
+    const [b, k] = String(r).split(".");
+    const neg = b.startsWith("-");
+    const g = (neg ? b.slice(1) : b).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return (neg ? "−" : "") + g + (k ? "." + k : "");
+};
 function Field({ label, value, onChange, placeholder, suffix, mode = "decimal" }) {
     return (React.createElement("label", { className: "block" },
         label && React.createElement("span", { className: "text-xs", style: { color: C.muted } }, label),
@@ -18093,6 +18156,8 @@ function App() {
     const [ochirId, setOchirId] = useState(null);
     const [qismOchiq, setQismOchiq] = useState(null);
     const [elOchir, setElOchir] = useState(null);
+    const [ifoda, setIfoda] = useState("");
+    const [tarix, setTarix] = useState([]);
     const [yuklandi, setYuklandi] = useState(false);
     const [sozlOchiq, setSozlOchiq] = useState(false);
     const [rangRoy, setRangRoy] = useState("Oq, Qora");
@@ -18471,6 +18536,72 @@ function App() {
                         Object.keys(x.vals || {}).length > 0 ? (React.createElement("button", { className: "text-xs font-semibold", style: { color: C.navy }, onClick: () => setEl(x.id, { vals: {} }) }, "Fasondagidek qaytarish")) : React.createElement("span", null),
                         React.createElement(Tugma, { tur: "asosiy", onClick: () => setEl(x.id, { ochiq: false }) }, "Tayyor"))))))));
     };
+    // ───────── Oddiy kalkulyator ─────────
+    const KalkEkran = () => {
+        const OP = ["+", "\u2212", "×", "÷", "%"];
+        let natija = "";
+        try {
+            if (ifoda && !OP.includes(ifoda.slice(-1)))
+                natija = sonKorinish(ifodaHisobla(ifoda));
+        }
+        catch (e) {
+            natija = "";
+        }
+        const bos = (k) => {
+            if (k === "C")
+                return setIfoda("");
+            if (k === "⌫")
+                return setIfoda((x) => x.slice(0, -1));
+            if (k === "=") {
+                try {
+                    const v = ifodaHisobla(ifoda);
+                    if (!isFinite(v))
+                        return;
+                    const r = String(Math.round(v * 1e8) / 1e8).replace("-", "\u2212");
+                    setTarix((h) => [{ ifoda, natija: sonKorinish(v) }, ...h].slice(0, 15));
+                    setIfoda(r);
+                }
+                catch (e) { }
+                return;
+            }
+            setIfoda((x) => {
+                const oxir = x.slice(-1);
+                if (OP.includes(k)) {
+                    if (!x)
+                        return k === "\u2212" ? k : x;
+                    if (OP.includes(oxir))
+                        return x.slice(0, -1) + k;
+                    return x + k;
+                }
+                const songi = x.split(/[+\u2212×÷%]/).pop();
+                if (k === "." && songi.includes("."))
+                    return x;
+                if (k === ".")
+                    return x + (songi === "" ? "0." : ".");
+                return x + k;
+            });
+        };
+        const tugmalar = ["C", "⌫", "%", "÷", "7", "8", "9", "×", "4", "5", "6", "\u2212", "1", "2", "3", "+", "00", "0", ".", "="];
+        return (React.createElement("div", { className: "space-y-3" },
+            React.createElement("div", { className: "rounded-xl p-4 text-right", style: { background: "#fff", border: `1px solid ${C.silver}` } },
+                React.createElement("div", { className: "break-all", style: { fontSize: 26, color: C.ink, minHeight: 36 } }, ifoda ? ifoda.replace(/\d+(?:\.\d+)?/g, (n) => { const [b, k] = n.split("."); return b.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (k !== undefined ? "." + k : ""); }) : "0"),
+                React.createElement("div", { className: "font-extrabold", style: { fontSize: 34, color: C.navy, minHeight: 44 } }, natija && natija !== ifoda ? "= " + natija : "")),
+            React.createElement("div", { className: "grid grid-cols-4 gap-2" }, tugmalar.map((k) => {
+                const op = OP.includes(k);
+                const st = k === "=" ? { background: C.tape, color: C.ink }
+                    : k === "C" || k === "⌫" ? { background: "#E3E7EB", color: C.red }
+                        : op ? { background: C.navy, color: "#fff" }
+                            : { background: "#fff", color: C.ink, border: `1px solid ${C.silver}` };
+                return (React.createElement("button", { key: k, onClick: () => bos(k), className: "rounded-xl font-bold", style: { ...st, fontSize: 26, height: 64 } }, k));
+            })),
+            tarix.length > 0 && (React.createElement("div", { className: "rounded-xl p-3", style: { background: "#fff", border: `1px solid ${C.silver}` } },
+                React.createElement("div", { className: "flex justify-between items-center mb-1" },
+                    React.createElement("span", { className: "text-sm font-semibold", style: { color: C.navy } }, "Oxirgi hisoblar"),
+                    React.createElement("button", { className: "text-xs", style: { color: C.muted }, onClick: () => setTarix([]) }, "Tozalash")),
+                tarix.map((h, i) => (React.createElement("button", { key: i, className: "w-full flex justify-between py-1 text-sm", style: { color: C.ink }, onClick: () => setIfoda(h.natija.replace(/ /g, "")) },
+                    React.createElement("span", { style: { color: C.muted } }, h.ifoda),
+                    React.createElement("b", null, h.natija))))))));
+    };
     const HisobEkran = () => (React.createElement("div", { className: "space-y-4" },
         sozlOchiq && (React.createElement("section", { className: "rounded-xl p-3 space-y-2", style: { background: "#fff", border: `1px solid ${C.silver}` } },
             React.createElement("div", { className: "grid grid-cols-2 gap-2" },
@@ -18567,8 +18698,8 @@ function App() {
                 React.createElement("div", { className: "flex items-center justify-between" },
                     React.createElement("div", { className: "font-extrabold text-white", style: { fontSize: 20 } }, "ElShift bichish rejasi"),
                     ekran === "hisob" && (React.createElement("button", { onClick: () => setSozlOchiq((v) => !v), className: "px-3 py-1 rounded-lg text-sm font-semibold", style: sozlOchiq ? { background: C.tape, color: C.ink } : { color: "#fff", border: "1px solid #ffffff55" } }, "List"))),
-                React.createElement("div", { className: "flex gap-1 mt-2" }, [["hisob", "Hisob"], ["shablon", `Fasonlar (${shablonlar.length})`]].map(([k, l]) => (React.createElement("button", { key: k, onClick: () => { saqla(); setEkran(k); setTahrirId(null); }, className: "px-3 py-1.5 rounded-lg text-sm font-semibold", style: ekran === k ? { background: C.tape, color: C.ink } : { color: "#fff" } }, l)))))),
-        React.createElement("main", { className: "max-w-md mx-auto px-4 py-4 pb-24", onBlurCapture: keyinSaqla }, ekran === "hisob" ? HisobEkran() : ShablonEkran()),
+                React.createElement("div", { className: "flex gap-1 mt-2" }, [["hisob", "Hisob"], ["shablon", `Fasonlar (${shablonlar.length})`], ["kalk", "Kalkulyator"]].map(([k, l]) => (React.createElement("button", { key: k, onClick: () => { saqla(); setEkran(k); setTahrirId(null); }, className: "px-3 py-1.5 rounded-lg text-sm font-semibold", style: ekran === k ? { background: C.tape, color: C.ink } : { color: "#fff" } }, l)))))),
+        React.createElement("main", { className: "max-w-md mx-auto px-4 py-4 pb-24", onBlurCapture: keyinSaqla }, ekran === "hisob" ? HisobEkran() : ekran === "kalk" ? KalkEkran() : ShablonEkran()),
         xabar && (React.createElement("div", { className: "fixed left-0 right-0 flex justify-center", style: { bottom: 84 } },
             React.createElement("div", { className: "px-4 py-2 rounded-lg text-sm font-semibold", style: { background: C.navy, color: "#fff" } }, xabar))),
         ekran === "hisob" && (React.createElement("div", { className: "fixed bottom-0 left-0 right-0", style: { background: C.ink } },
