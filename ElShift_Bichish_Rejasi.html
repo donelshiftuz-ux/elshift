@@ -2,10 +2,10 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
-<meta name="elshift-versiya" content="1791646021">
+<meta name="elshift-versiya" content="1791646480">
 <script>
 // Telefon faylga "-1", "-2" qo'shib yuborsa ham: eng yangi versiyani topib, o'shani ochadi
-(function(){var V=1791646021,b="ElShift_Bichish_Rejasi",n=[b+".html"];for(var i=1;i<=30;i++)n.push(b+"-"+i+".html");
+(function(){var V=1791646480,b="ElShift_Bichish_Rejasi",n=[b+".html"];for(var i=1;i<=30;i++)n.push(b+"-"+i+".html");
 var me=decodeURIComponent(location.pathname.split("/").pop()||""),best=null,bv=V;
 if(location.protocol.indexOf("http")!==0)return;try{localStorage.setItem("elshift-oxirgi",me)}catch(e){}
 Promise.all(n.filter(function(x){return x!==me}).map(function(x){return fetch(x,{headers:{Range:"bytes=0-1500"},cache:"no-store"}).then(function(r){if(!r.ok)return;return r.text().then(function(t){var m=t.slice(0,4000).match(/elshift-versiya" content="(\d+)"/);if(m&&+m[1]>bv){bv=+m[1];best=x}})}).catch(function(){})})).then(function(){if(best)location.replace(best)});})();
@@ -18163,6 +18163,25 @@ function App() {
     const [elOchir, setElOchir] = useState(null);
     const [ifoda, setIfoda] = useState("");
     const [tarix, setTarix] = useState([]);
+    const [tarixYuklandi, setTarixYuklandi] = useState(false);
+    const KUN = 24 * 60 * 60 * 1000;
+    useEffect(() => {
+        (async () => {
+            try {
+                const r = await window.storage.get("elshift-kalk-tarix", false);
+                if (r && r.value)
+                    setTarix(JSON.parse(r.value).filter((h) => h.t && Date.now() - h.t < KUN));
+            }
+            catch (e) { /* hali yo'q */ }
+            setTarixYuklandi(true);
+        })();
+    }, []);
+    useEffect(() => {
+        if (!tarixYuklandi)
+            return;
+        const qoldi = tarix.filter((h) => Date.now() - h.t < KUN);
+        window.storage.set("elshift-kalk-tarix", JSON.stringify(qoldi), false).catch(() => { });
+    }, [tarix, tarixYuklandi]);
     const [yuklandi, setYuklandi] = useState(false);
     const [sozlOchiq, setSozlOchiq] = useState(false);
     const [rangRoy, setRangRoy] = useState("Oq, Qora");
@@ -18553,6 +18572,14 @@ function App() {
             natija = "";
         }
         const bos = (k) => {
+            try {
+                const tg = window.Telegram && window.Telegram.WebApp;
+                if (tg && tg.initData && tg.HapticFeedback)
+                    tg.HapticFeedback.impactOccurred("light");
+                else if (navigator.vibrate)
+                    navigator.vibrate(15);
+            }
+            catch (e) { }
             if (k === "C")
                 return setIfoda("");
             if (k === "⌫")
@@ -18563,7 +18590,7 @@ function App() {
                     if (!isFinite(v))
                         return;
                     const r = String(Math.round(v * 1e8) / 1e8).replace("-", "\u2212");
-                    setTarix((h) => [{ ifoda, natija: sonKorinish(v) }, ...h].slice(0, 15));
+                    setTarix((h) => [{ ifoda, natija: sonKorinish(v), t: Date.now() }, ...h.filter((x) => Date.now() - x.t < KUN)].slice(0, 200));
                     setIfoda(r);
                 }
                 catch (e) { }
@@ -18590,7 +18617,7 @@ function App() {
         const korin = ifoda ? ifoda.replace(/\d+(?:\.\d+)?/g, (n) => { const [b2, k] = n.split("."); return b2.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (k !== undefined ? "." + k : ""); }) : "0";
         return (React.createElement("div", { className: "flex flex-col", style: { height: "calc(100dvh - 150px)", minHeight: 480 } },
             React.createElement("div", { className: "flex flex-col rounded-2xl px-4 py-3 mb-3", style: { flex: "1 1 auto", minHeight: 150, background: "#fff", border: `1px solid ${C.silver}` } },
-                React.createElement("div", { className: "overflow-auto text-right", style: { flex: "1 1 auto", minHeight: 0 } }, tarix.slice(0, 6).reverse().map((h, i) => (React.createElement("button", { key: i, className: "block w-full text-right text-sm py-0.5", style: { color: C.muted }, onClick: () => setIfoda(h.natija.replace(/ /g, "").replace("−", "\u2212")) },
+                React.createElement("div", { className: "overflow-auto text-right", style: { flex: "1 1 auto", minHeight: 0 } }, tarix.filter((h) => Date.now() - h.t < KUN).slice().reverse().map((h, i) => (React.createElement("button", { key: i, className: "block w-full text-right text-sm py-0.5", style: { color: C.muted }, onClick: () => setIfoda(h.natija.replace(/ /g, "").replace("−", "\u2212")) },
                     h.ifoda,
                     " = ",
                     React.createElement("b", { style: { color: C.ink } }, h.natija))))),
