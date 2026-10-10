@@ -40,6 +40,7 @@
   .nav{display:grid;gap:8px;margin-top:10px}
   .navbtn{display:block;text-align:center;padding:12px;border-radius:10px;background:#fc3f1d;color:#fff;text-decoration:none;font-weight:600}
   .navbtn.alt{background:transparent;color:var(--btn);border:1.5px solid var(--btn)}
+  .savebtn{background:#1a8f3c}
   .env{font-size:13px;color:var(--hint)}
   #viewer{position:fixed;inset:0;background:#000e;display:none;flex-direction:column;justify-content:center;z-index:10}
   #viewer.on{display:flex}
@@ -74,6 +75,8 @@
     <div id="locOut" class="out"></div>
   </section>
 
+  <section id="card" style="display:none"></section>
+
   <p id="env" class="env"></p>
 
   <div id="viewer"><div class="box" id="vbox"></div><button type="button" id="vclose">Yopish</button></div>
@@ -83,7 +86,7 @@
   const inMiniApp = !!(tg && tg.initData);
   if (tg) { tg.ready(); tg.expand(); }
   document.getElementById('env').textContent =
-    (inMiniApp ? 'Telegram Mini App ichida ochilgan.' : 'Oddiy brauzerda ochilgan.') + ' Versiya 3.';
+    (inMiniApp ? 'Telegram Mini App ichida ochilgan.' : 'Oddiy brauzerda ochilgan.') + ' Versiya 4.';
 
   // --- Rasm va videolar: har safar qo'shiladi, oldingilari o'chmaydi ---
   const store = { img: [], vid: [] };
@@ -131,16 +134,31 @@
   // --- Lokatsiya ---
   const locOut = document.getElementById('locOut');
   const locBtn = document.getElementById('locBtn');
+  let saved = null;
   function showLoc(lat, lon, src, acc){
     const ll = lat.toFixed(6) + ',' + lon.toFixed(6);
     const accTxt = acc ? ' (aniqlik: ±' + Math.round(acc) + ' m)' : '';
-    locOut.innerHTML = '<span class="ok">Ishladi (' + src + '):</span> ' + ll + accTxt +
+    locOut.innerHTML = '<span class="ok">Topildi (' + src + '):</span> ' + ll + accTxt +
       '<div class="nav">' +
-      '<a class="navbtn" href="yandexnavi://build_route_on_map?lat_to=' + lat + '&lon_to=' + lon + '">Yandex Navigator</a>' +
-      '<a class="navbtn alt" href="https://yandex.uz/maps/?rtext=~' + ll + '&rtt=auto" target="_blank">Yandex Xarita</a>' +
-      '<a class="navbtn alt" href="https://www.google.com/maps/dir/?api=1&destination=' + ll + '&travelmode=driving" target="_blank">Google navigatsiya</a>' +
+      '<button type="button" id="saveLoc" class="savebtn">Obyekt lokatsiyasi sifatida saqlash</button>' +
+      '<a class="navbtn alt" href="https://yandex.uz/maps/?pt=' + lon + ',' + lat + '&z=18&l=map" target="_blank">Xaritada tekshirib ko\'rish</a>' +
       '</div>';
+    document.getElementById('saveLoc').onclick = () => { saved = {lat, lon, acc}; renderCard(); };
     locBtn.disabled = false;
+  }
+  // Usta / shofyor ko'radigan obyekt kartasi (namunasi)
+  function renderCard(){
+    const card = document.getElementById('card');
+    if (!saved) { card.style.display = 'none'; return; }
+    const {lat, lon, acc} = saved;
+    card.style.display = 'block';
+    card.innerHTML = '<h2>Obyekt kartasi <small>usta va shofyor ko\'radi</small></h2>' +
+      '<div class="out"><span class="ok">Lokatsiya saqlandi.</span> ' + lat.toFixed(6) + ', ' + lon.toFixed(6) +
+      (acc ? ' (±' + Math.round(acc) + ' m)' : '') +
+      '<br>Rasmlar: ' + store.img.length + ' ta, videolar: ' + store.vid.length + ' ta</div>' +
+      '<div class="nav"><a class="navbtn" href="yandexnavi://build_route_on_map?lat_to=' + lat + '&lon_to=' + lon + '">Obyektga yo\'l (Yandex Navigator)</a></div>' +
+      '<p class="env" style="margin:8px 0 0">Sinov sahifasida saqlash faqat shu ekranda. Botda bu obyekt bazasiga yoziladi.</p>';
+    card.scrollIntoView({behavior:'smooth', block:'start'});
   }
   function geoError(msg){
     locOut.innerHTML = '<span class="err">Lokatsiya olinmadi.</span> ' + msg +
