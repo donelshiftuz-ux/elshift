@@ -2,12 +2,12 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
-<meta name="elshift-versiya" content="1791645514">
+<meta name="elshift-versiya" content="1791646021">
 <script>
 // Telefon faylga "-1", "-2" qo'shib yuborsa ham: eng yangi versiyani topib, o'shani ochadi
-(function(){var V=1791645514,b="ElShift_Bichish_Rejasi",n=[b+".html"];for(var i=1;i<=30;i++)n.push(b+"-"+i+".html");
+(function(){var V=1791646021,b="ElShift_Bichish_Rejasi",n=[b+".html"];for(var i=1;i<=30;i++)n.push(b+"-"+i+".html");
 var me=decodeURIComponent(location.pathname.split("/").pop()||""),best=null,bv=V;
-if(location.protocol.indexOf("http")!==0)return;
+if(location.protocol.indexOf("http")!==0)return;try{localStorage.setItem("elshift-oxirgi",me)}catch(e){}
 Promise.all(n.filter(function(x){return x!==me}).map(function(x){return fetch(x,{headers:{Range:"bytes=0-1500"},cache:"no-store"}).then(function(r){if(!r.ok)return;return r.text().then(function(t){var m=t.slice(0,4000).match(/elshift-versiya" content="(\d+)"/);if(m&&+m[1]>bv){bv=+m[1];best=x}})}).catch(function(){})})).then(function(){if(best)location.replace(best)});})();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
@@ -530,8 +530,8 @@ video {
 }.mx-auto {
   margin-left: auto;
   margin-right: auto;
-}.mb-1 {
-  margin-bottom: 0.25rem;
+}.mb-3 {
+  margin-bottom: 0.75rem;
 }.ml-2 {
   margin-left: 0.5rem;
 }.mt-1 {
@@ -594,12 +594,16 @@ video {
   --tw-space-y-reverse: 0;
   margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+}.overflow-auto {
+  overflow: auto;
 }.overflow-hidden {
   overflow: hidden;
 }.whitespace-nowrap {
   white-space: nowrap;
 }.break-all {
   word-break: break-all;
+}.rounded-2xl {
+  border-radius: 1rem;
 }.rounded-full {
   border-radius: 9999px;
 }.rounded-lg {
@@ -616,8 +620,6 @@ video {
   padding: 0.5rem;
 }.p-3 {
   padding: 0.75rem;
-}.p-4 {
-  padding: 1rem;
 }.px-1 {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
@@ -630,6 +632,9 @@ video {
 }.px-4 {
   padding-left: 1rem;
   padding-right: 1rem;
+}.py-0\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
 }.py-1 {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
@@ -18582,25 +18587,23 @@ function App() {
             });
         };
         const tugmalar = ["C", "⌫", "%", "÷", "7", "8", "9", "×", "4", "5", "6", "\u2212", "1", "2", "3", "+", "00", "0", ".", "="];
-        return (React.createElement("div", { className: "space-y-3" },
-            React.createElement("div", { className: "rounded-xl p-4 text-right", style: { background: "#fff", border: `1px solid ${C.silver}` } },
-                React.createElement("div", { className: "break-all", style: { fontSize: 26, color: C.ink, minHeight: 36 } }, ifoda ? ifoda.replace(/\d+(?:\.\d+)?/g, (n) => { const [b, k] = n.split("."); return b.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (k !== undefined ? "." + k : ""); }) : "0"),
-                React.createElement("div", { className: "font-extrabold", style: { fontSize: 34, color: C.navy, minHeight: 44 } }, natija && natija !== ifoda ? "= " + natija : "")),
-            React.createElement("div", { className: "grid grid-cols-4 gap-2" }, tugmalar.map((k) => {
+        const korin = ifoda ? ifoda.replace(/\d+(?:\.\d+)?/g, (n) => { const [b2, k] = n.split("."); return b2.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (k !== undefined ? "." + k : ""); }) : "0";
+        return (React.createElement("div", { className: "flex flex-col", style: { height: "calc(100dvh - 150px)", minHeight: 480 } },
+            React.createElement("div", { className: "flex flex-col rounded-2xl px-4 py-3 mb-3", style: { flex: "1 1 auto", minHeight: 150, background: "#fff", border: `1px solid ${C.silver}` } },
+                React.createElement("div", { className: "overflow-auto text-right", style: { flex: "1 1 auto", minHeight: 0 } }, tarix.slice(0, 6).reverse().map((h, i) => (React.createElement("button", { key: i, className: "block w-full text-right text-sm py-0.5", style: { color: C.muted }, onClick: () => setIfoda(h.natija.replace(/ /g, "").replace("−", "\u2212")) },
+                    h.ifoda,
+                    " = ",
+                    React.createElement("b", { style: { color: C.ink } }, h.natija))))),
+                React.createElement("div", { className: "text-right break-all", style: { fontSize: 32, color: C.ink, lineHeight: 1.2 } }, korin),
+                React.createElement("div", { className: "text-right font-extrabold", style: { fontSize: 40, color: C.navy, minHeight: 50, lineHeight: 1.2 } }, natija && natija !== korin ? "= " + natija : "")),
+            React.createElement("div", { className: "grid grid-cols-4 gap-2", style: { flex: "0 0 62%", gridTemplateRows: "repeat(5, 1fr)" } }, tugmalar.map((k) => {
                 const op = OP.includes(k);
                 const st = k === "=" ? { background: C.tape, color: C.ink }
                     : k === "C" || k === "⌫" ? { background: "#E3E7EB", color: C.red }
                         : op ? { background: C.navy, color: "#fff" }
                             : { background: "#fff", color: C.ink, border: `1px solid ${C.silver}` };
-                return (React.createElement("button", { key: k, onClick: () => bos(k), className: "rounded-xl font-bold", style: { ...st, fontSize: 26, height: 64 } }, k));
-            })),
-            tarix.length > 0 && (React.createElement("div", { className: "rounded-xl p-3", style: { background: "#fff", border: `1px solid ${C.silver}` } },
-                React.createElement("div", { className: "flex justify-between items-center mb-1" },
-                    React.createElement("span", { className: "text-sm font-semibold", style: { color: C.navy } }, "Oxirgi hisoblar"),
-                    React.createElement("button", { className: "text-xs", style: { color: C.muted }, onClick: () => setTarix([]) }, "Tozalash")),
-                tarix.map((h, i) => (React.createElement("button", { key: i, className: "w-full flex justify-between py-1 text-sm", style: { color: C.ink }, onClick: () => setIfoda(h.natija.replace(/ /g, "")) },
-                    React.createElement("span", { style: { color: C.muted } }, h.ifoda),
-                    React.createElement("b", null, h.natija))))))));
+                return (React.createElement("button", { key: k, onClick: () => bos(k), className: "rounded-2xl font-bold", style: { ...st, fontSize: 30, height: "100%" } }, k));
+            }))));
     };
     const HisobEkran = () => (React.createElement("div", { className: "space-y-4" },
         sozlOchiq && (React.createElement("section", { className: "rounded-xl p-3 space-y-2", style: { background: "#fff", border: `1px solid ${C.silver}` } },
