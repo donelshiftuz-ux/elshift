@@ -15,25 +15,37 @@
     --card: var(--tg-theme-secondary-bg-color, #f1f3f5);
   }
   *{box-sizing:border-box}
+  html,body{overflow-x:hidden;max-width:100%}
   body{margin:0;padding:18px 16px 40px;background:var(--bg);color:var(--text);
        font:16px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif}
   h1{font-size:22px;margin:0 0 4px}
   .sub{color:var(--hint);margin:0 0 18px;font-size:14px}
   section{background:var(--card);border-radius:14px;padding:14px;margin-bottom:14px}
-  h2{font-size:17px;margin:0 0 10px}
+  h2{font-size:17px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline}
+  h2 small{font-weight:400;font-size:14px;color:var(--hint)}
   button,.pick{display:block;width:100%;border:0;border-radius:10px;padding:14px;
        background:var(--btn);color:var(--btn-text);font-size:16px;font-weight:600;text-align:center;cursor:pointer}
   .pick input{display:none}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
-  .grid img,.grid video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#0002}
-  .out{margin-top:10px;font-size:14px;word-break:break-word}
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
+  .grid:empty{display:none}
+  .thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#0003}
+  .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .thumb .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+       color:#fff;font-size:30px;text-shadow:0 1px 4px #000a;pointer-events:none}
+  .thumb .del{position:absolute;top:4px;right:4px;width:26px;height:26px;padding:0;border-radius:50%;
+       background:#000a;color:#fff;font-size:16px;line-height:26px}
+  .out{margin-top:10px;font-size:14px;overflow-wrap:anywhere}
   .ok{color:#1a8f3c;font-weight:600}
   .err{color:#c62828;font-weight:600}
-  a{color:var(--btn)}
   .nav{display:grid;gap:8px;margin-top:10px}
   .navbtn{display:block;text-align:center;padding:12px;border-radius:10px;background:#fc3f1d;color:#fff;text-decoration:none;font-weight:600}
   .navbtn.alt{background:transparent;color:var(--btn);border:1.5px solid var(--btn)}
   .env{font-size:13px;color:var(--hint)}
+  #viewer{position:fixed;inset:0;background:#000e;display:none;flex-direction:column;justify-content:center;z-index:10}
+  #viewer.on{display:flex}
+  #viewer .box{width:100%;max-height:80vh;display:flex;justify-content:center}
+  #viewer img,#viewer video{max-width:100%;max-height:80vh}
+  #viewer button{width:auto;margin:14px auto 0;padding:10px 22px;background:#fff;color:#000}
 </style>
 </head>
 <body>
@@ -41,12 +53,19 @@
   <p class="sub">Rasm, video va lokatsiyani oyna yopilmasdan qo'shishni tekshiradi. Hech narsa saqlanmaydi.</p>
 
   <section>
-    <h2>Rasm va video</h2>
-    <label class="pick">Galereyadan tanlash
-      <input id="files" type="file" accept="image/*,video/*" multiple>
+    <h2>Rasmlar <small id="imgCount">0 ta</small></h2>
+    <label class="pick">Rasm qo'shish
+      <input id="imgInput" type="file" accept="image/*" multiple>
     </label>
-    <div id="filesOut" class="out"></div>
-    <div id="grid" class="grid"></div>
+    <div id="imgGrid" class="grid"></div>
+  </section>
+
+  <section>
+    <h2>Videolar <small id="vidCount">0 ta</small></h2>
+    <label class="pick">Video qo'shish
+      <input id="vidInput" type="file" accept="video/*" multiple>
+    </label>
+    <div id="vidGrid" class="grid"></div>
   </section>
 
   <section>
@@ -57,37 +76,61 @@
 
   <p id="env" class="env"></p>
 
+  <div id="viewer"><div class="box" id="vbox"></div><button type="button" id="vclose">Yopish</button></div>
+
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
   const inMiniApp = !!(tg && tg.initData);
   if (tg) { tg.ready(); tg.expand(); }
   document.getElementById('env').textContent =
-    inMiniApp ? 'Telegram Mini App ichida ochilgan (versiya ' + tg.version + ', ' + tg.platform + ').'
-              : 'Oddiy brauzerda ochilgan. Lokatsiya brauzer orqali olinadi.';
+    (inMiniApp ? 'Telegram Mini App ichida ochilgan.' : 'Oddiy brauzerda ochilgan.') + ' Versiya 3.';
 
-  // Rasm va video: oyna yopilmaydi, sendData ishlatilmaydi
-  const filesInput = document.getElementById('files');
-  filesInput.addEventListener('change', () => {
-    const grid = document.getElementById('grid');
-    const out = document.getElementById('filesOut');
+  // --- Rasm va videolar: har safar qo'shiladi, oldingilari o'chmaydi ---
+  const store = { img: [], vid: [] };
+  function render(kind){
+    const grid = document.getElementById(kind === 'img' ? 'imgGrid' : 'vidGrid');
+    document.getElementById(kind === 'img' ? 'imgCount' : 'vidCount').textContent =
+      store[kind].length + ' ta';
     grid.innerHTML = '';
-    const list = Array.from(filesInput.files);
-    if (!list.length) { out.innerHTML = '<span class="err">Fayl tanlanmadi.</span>'; return; }
-    let total = 0;
-    list.forEach(f => {
-      total += f.size;
-      const url = URL.createObjectURL(f);
-      const el = f.type.startsWith('video') ? document.createElement('video') : document.createElement('img');
-      el.src = url;
-      if (el.tagName === 'VIDEO') { el.muted = true; el.playsInline = true; el.controls = true; }
-      grid.appendChild(el);
+    store[kind].forEach((item, i) => {
+      const t = document.createElement('div'); t.className = 'thumb';
+      if (kind === 'img') {
+        const im = document.createElement('img'); im.src = item.url; t.appendChild(im);
+      } else {
+        const v = document.createElement('video');
+        v.src = item.url + '#t=0.5'; v.muted = true; v.playsInline = true; v.preload = 'metadata';
+        t.appendChild(v);
+        const p = document.createElement('div'); p.className = 'play'; p.textContent = '▶'; t.appendChild(p);
+      }
+      const d = document.createElement('button'); d.className = 'del'; d.type = 'button'; d.textContent = '×';
+      d.onclick = e => { e.stopPropagation(); URL.revokeObjectURL(item.url); store[kind].splice(i,1); render(kind); };
+      t.appendChild(d);
+      t.onclick = () => openViewer(kind, item.url);
+      grid.appendChild(t);
     });
-    out.innerHTML = '<span class="ok">Ishladi:</span> ' + list.length + ' ta fayl, jami ' +
-      (total/1048576).toFixed(1) + ' MB. Oyna ochiq qoldi.';
-  });
+  }
+  function addFiles(kind, input){
+    Array.from(input.files).forEach(f => store[kind].push({ file: f, url: URL.createObjectURL(f) }));
+    input.value = '';                 // keyingi tanlov uchun tozalanadi, oldingilari saqlanadi
+    render(kind);
+  }
+  document.getElementById('imgInput').addEventListener('change', e => addFiles('img', e.target));
+  document.getElementById('vidInput').addEventListener('change', e => addFiles('vid', e.target));
 
-  // Lokatsiya: avval Telegram LocationManager, bo'lmasa brauzer geolokatsiyasi
+  // To'liq ekranda ko'rish
+  const viewer = document.getElementById('viewer'), vbox = document.getElementById('vbox');
+  function openViewer(kind, url){
+    vbox.innerHTML = '';
+    const el = document.createElement(kind === 'img' ? 'img' : 'video');
+    el.src = url;
+    if (kind === 'vid') { el.controls = true; el.playsInline = true; el.setAttribute('controlslist','nodownload noplaybackrate'); el.disablePictureInPicture = true; }
+    vbox.appendChild(el); viewer.classList.add('on');
+  }
+  document.getElementById('vclose').onclick = () => { vbox.innerHTML = ''; viewer.classList.remove('on'); };
+
+  // --- Lokatsiya ---
   const locOut = document.getElementById('locOut');
+  const locBtn = document.getElementById('locBtn');
   function showLoc(lat, lon, src, acc){
     const ll = lat.toFixed(6) + ',' + lon.toFixed(6);
     const accTxt = acc ? ' (aniqlik: ±' + Math.round(acc) + ' m)' : '';
@@ -97,40 +140,57 @@
       '<a class="navbtn alt" href="https://yandex.uz/maps/?rtext=~' + ll + '&rtt=auto" target="_blank">Yandex Xarita</a>' +
       '<a class="navbtn alt" href="https://www.google.com/maps/dir/?api=1&destination=' + ll + '&travelmode=driving" target="_blank">Google navigatsiya</a>' +
       '</div>';
+    locBtn.disabled = false;
+  }
+  function geoError(msg){
+    locOut.innerHTML = '<span class="err">Lokatsiya olinmadi.</span> ' + msg +
+      '<br>1) Telefonda "Joylashuv" (GPS) yoqilganini tekshiring.' +
+      '<br>2) Brauzer yoki Telegram\'ga joylashuvga ruxsat bering.' +
+      '<br>3) Ochiq joyda qayta urinib ko\'ring.';
+    locBtn.disabled = false;
   }
   function browserGeo(){
-    if (!navigator.geolocation) { locOut.innerHTML = '<span class="err">Bu qurilmada lokatsiya olib bo\'lmaydi.</span>'; return; }
-    locOut.textContent = 'GPS aniqlanmoqda... (15 soniyagacha)';
-    let best = null;
+    if (!navigator.geolocation) { geoError('Bu qurilma lokatsiyani qo\'llamaydi.'); return; }
+    locBtn.disabled = true;
+    locOut.textContent = 'GPS aniqlanmoqda... (20 soniyagacha)';
+    let best = null, done = false, id = null;
     const finish = () => {
-      navigator.geolocation.clearWatch(id); clearTimeout(timer);
-      if (best) showLoc(best.latitude, best.longitude, 'GPS', best.accuracy);
+      if (done) return; done = true;
+      if (id !== null) navigator.geolocation.clearWatch(id);
+      clearTimeout(timer);
+      if (best) { showLoc(best.latitude, best.longitude, 'GPS', best.accuracy); return; }
+      // GPS topilmasa: taxminiy (tarmoq orqali) lokatsiya
+      locOut.textContent = 'GPS topilmadi, taxminiy lokatsiya olinmoqda...';
+      navigator.geolocation.getCurrentPosition(
+        p => showLoc(p.coords.latitude, p.coords.longitude, 'taxminiy', p.coords.accuracy),
+        e => geoError(e.code === 1 ? 'Ruxsat berilmagan.' : 'Signal topilmadi.'),
+        { enableHighAccuracy: false, maximumAge: 120000, timeout: 10000 }
+      );
     };
-    const id = navigator.geolocation.watchPosition(
+    id = navigator.geolocation.watchPosition(
       p => {
         if (!best || p.coords.accuracy < best.accuracy) best = p.coords;
         locOut.textContent = 'GPS aniqlanmoqda... hozircha ±' + Math.round(best.accuracy) + ' m';
         if (best.accuracy <= 15) finish();
       },
-      e => { navigator.geolocation.clearWatch(id); clearTimeout(timer);
-             locOut.innerHTML = '<span class="err">Lokatsiya olinmadi:</span> ' + e.message +
-             '. Telefonda GPS yoqilganini va ruxsat berilganini tekshiring.'; },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+      e => { if (e.code === 1) { done = true; navigator.geolocation.clearWatch(id); clearTimeout(timer); geoError('Ruxsat berilmagan.'); } },
+      { enableHighAccuracy: true, maximumAge: 0 }
     );
-    const timer = setTimeout(finish, 15000);
+    const timer = setTimeout(finish, 20000);
   }
-  document.getElementById('locBtn').addEventListener('click', () => {
+  locBtn.addEventListener('click', () => {
     const lm = tg && tg.LocationManager;
     if (inMiniApp && lm && tg.isVersionAtLeast && tg.isVersionAtLeast('8.0')) {
-      locOut.textContent = 'Lokatsiya olinmoqda...';
+      locBtn.disabled = true;
+      locOut.textContent = 'Telegram orqali lokatsiya olinmoqda...';
       lm.init(() => {
         if (!lm.isLocationAvailable) { browserGeo(); return; }
         lm.getLocation(loc => {
-          if (loc) { showLoc(loc.latitude, loc.longitude, 'Telegram', loc.horizontal_accuracy); }
+          if (loc) showLoc(loc.latitude, loc.longitude, 'Telegram', loc.horizontal_accuracy);
           else {
-            locOut.innerHTML = '<span class="err">Ruxsat berilmadi.</span> Sozlamada ruxsat bering. ' +
-              '<button type="button" id="openSet" style="margin-top:8px">Sozlamani ochish</button>';
-            document.getElementById('openSet').onclick = () => lm.openSettings();
+            geoError('Telegram\'ga ruxsat berilmagan.');
+            const b = document.createElement('button'); b.type = 'button'; b.style.marginTop = '8px';
+            b.textContent = 'Sozlamani ochish'; b.onclick = () => lm.openSettings(); locOut.appendChild(b);
           }
         });
       });
