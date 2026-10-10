@@ -30,6 +30,9 @@
   .ok{color:#1a8f3c;font-weight:600}
   .err{color:#c62828;font-weight:600}
   a{color:var(--btn)}
+  .nav{display:grid;gap:8px;margin-top:10px}
+  .navbtn{display:block;text-align:center;padding:12px;border-radius:10px;background:#fc3f1d;color:#fff;text-decoration:none;font-weight:600}
+  .navbtn.alt{background:transparent;color:var(--btn);border:1.5px solid var(--btn)}
   .env{font-size:13px;color:var(--hint)}
 </style>
 </head>
@@ -85,20 +88,36 @@
 
   // Lokatsiya: avval Telegram LocationManager, bo'lmasa brauzer geolokatsiyasi
   const locOut = document.getElementById('locOut');
-  function showLoc(lat, lon, src){
-    const link = 'https://maps.google.com/?q=' + lat + ',' + lon;
-    locOut.innerHTML = '<span class="ok">Ishladi (' + src + '):</span> ' +
-      lat.toFixed(6) + ', ' + lon.toFixed(6) + '<br><a href="' + link + '" target="_blank">Xaritada ochish</a>';
+  function showLoc(lat, lon, src, acc){
+    const ll = lat.toFixed(6) + ',' + lon.toFixed(6);
+    const accTxt = acc ? ' (aniqlik: ±' + Math.round(acc) + ' m)' : '';
+    locOut.innerHTML = '<span class="ok">Ishladi (' + src + '):</span> ' + ll + accTxt +
+      '<div class="nav">' +
+      '<a class="navbtn" href="yandexnavi://build_route_on_map?lat_to=' + lat + '&lon_to=' + lon + '">Yandex Navigator</a>' +
+      '<a class="navbtn alt" href="https://yandex.uz/maps/?rtext=~' + ll + '&rtt=auto" target="_blank">Yandex Xarita</a>' +
+      '<a class="navbtn alt" href="https://www.google.com/maps/dir/?api=1&destination=' + ll + '&travelmode=driving" target="_blank">Google navigatsiya</a>' +
+      '</div>';
   }
   function browserGeo(){
     if (!navigator.geolocation) { locOut.innerHTML = '<span class="err">Bu qurilmada lokatsiya olib bo\'lmaydi.</span>'; return; }
-    locOut.textContent = 'Lokatsiya olinmoqda...';
-    navigator.geolocation.getCurrentPosition(
-      p => showLoc(p.coords.latitude, p.coords.longitude, 'brauzer'),
-      e => { locOut.innerHTML = '<span class="err">Lokatsiya olinmadi:</span> ' + e.message +
-             '. Telefonda GPS yoqilganini va Telegram\'ga ruxsat berilganini tekshiring.'; },
-      { enableHighAccuracy: true, timeout: 15000 }
+    locOut.textContent = 'GPS aniqlanmoqda... (15 soniyagacha)';
+    let best = null;
+    const finish = () => {
+      navigator.geolocation.clearWatch(id); clearTimeout(timer);
+      if (best) showLoc(best.latitude, best.longitude, 'GPS', best.accuracy);
+    };
+    const id = navigator.geolocation.watchPosition(
+      p => {
+        if (!best || p.coords.accuracy < best.accuracy) best = p.coords;
+        locOut.textContent = 'GPS aniqlanmoqda... hozircha ±' + Math.round(best.accuracy) + ' m';
+        if (best.accuracy <= 15) finish();
+      },
+      e => { navigator.geolocation.clearWatch(id); clearTimeout(timer);
+             locOut.innerHTML = '<span class="err">Lokatsiya olinmadi:</span> ' + e.message +
+             '. Telefonda GPS yoqilganini va ruxsat berilganini tekshiring.'; },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
     );
+    const timer = setTimeout(finish, 15000);
   }
   document.getElementById('locBtn').addEventListener('click', () => {
     const lm = tg && tg.LocationManager;
@@ -107,7 +126,7 @@
       lm.init(() => {
         if (!lm.isLocationAvailable) { browserGeo(); return; }
         lm.getLocation(loc => {
-          if (loc) { showLoc(loc.latitude, loc.longitude, 'Telegram'); }
+          if (loc) { showLoc(loc.latitude, loc.longitude, 'Telegram', loc.horizontal_accuracy); }
           else {
             locOut.innerHTML = '<span class="err">Ruxsat berilmadi.</span> Sozlamada ruxsat bering. ' +
               '<button type="button" id="openSet" style="margin-top:8px">Sozlamani ochish</button>';
