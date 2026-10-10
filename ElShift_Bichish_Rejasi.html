@@ -2,10 +2,10 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
-<meta name="elshift-versiya" content="1791646480">
+<meta name="elshift-versiya" content="1791647227">
 <script>
 // Telefon faylga "-1", "-2" qo'shib yuborsa ham: eng yangi versiyani topib, o'shani ochadi
-(function(){var V=1791646480,b="ElShift_Bichish_Rejasi",n=[b+".html"];for(var i=1;i<=30;i++)n.push(b+"-"+i+".html");
+(function(){var V=1791647227,b="ElShift_Bichish_Rejasi",n=[b+".html"];for(var i=1;i<=30;i++)n.push(b+"-"+i+".html");
 var me=decodeURIComponent(location.pathname.split("/").pop()||""),best=null,bv=V;
 if(location.protocol.indexOf("http")!==0)return;try{localStorage.setItem("elshift-oxirgi",me)}catch(e){}
 Promise.all(n.filter(function(x){return x!==me}).map(function(x){return fetch(x,{headers:{Range:"bytes=0-1500"},cache:"no-store"}).then(function(r){if(!r.ok)return;return r.text().then(function(t){var m=t.slice(0,4000).match(/elshift-versiya" content="(\d+)"/);if(m&&+m[1]>bv){bv=+m[1];best=x}})}).catch(function(){})})).then(function(){if(best)location.replace(best)});})();
@@ -530,8 +530,6 @@ video {
 }.mx-auto {
   margin-left: auto;
   margin-right: auto;
-}.mb-3 {
-  margin-bottom: 0.75rem;
 }.ml-2 {
   margin-left: 0.5rem;
 }.mt-1 {
@@ -572,6 +570,8 @@ video {
   align-items: center;
 }.items-baseline {
   align-items: baseline;
+}.justify-end {
+  justify-content: flex-end;
 }.justify-center {
   justify-content: center;
 }.justify-between {
@@ -632,9 +632,6 @@ video {
 }.px-4 {
   padding-left: 1rem;
   padding-right: 1rem;
-}.py-0\.5 {
-  padding-top: 0.125rem;
-  padding-bottom: 0.125rem;
 }.py-1 {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
@@ -18164,6 +18161,7 @@ function App() {
     const [ifoda, setIfoda] = useState("");
     const [tarix, setTarix] = useState([]);
     const [tarixYuklandi, setTarixYuklandi] = useState(false);
+    const [tarixOchiq, setTarixOchiq] = useState(false);
     const KUN = 24 * 60 * 60 * 1000;
     useEffect(() => {
         (async () => {
@@ -18577,7 +18575,7 @@ function App() {
                 if (tg && tg.initData && tg.HapticFeedback)
                     tg.HapticFeedback.impactOccurred("light");
                 else if (navigator.vibrate)
-                    navigator.vibrate(15);
+                    navigator.vibrate(6);
             }
             catch (e) { }
             if (k === "C")
@@ -18616,21 +18614,38 @@ function App() {
         const tugmalar = ["C", "⌫", "%", "÷", "7", "8", "9", "×", "4", "5", "6", "\u2212", "1", "2", "3", "+", "00", "0", ".", "="];
         const korin = ifoda ? ifoda.replace(/\d+(?:\.\d+)?/g, (n) => { const [b2, k] = n.split("."); return b2.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (k !== undefined ? "." + k : ""); }) : "0";
         return (React.createElement("div", { className: "flex flex-col", style: { height: "calc(100dvh - 150px)", minHeight: 480 } },
-            React.createElement("div", { className: "flex flex-col rounded-2xl px-4 py-3 mb-3", style: { flex: "1 1 auto", minHeight: 150, background: "#fff", border: `1px solid ${C.silver}` } },
-                React.createElement("div", { className: "overflow-auto text-right", style: { flex: "1 1 auto", minHeight: 0 } }, tarix.filter((h) => Date.now() - h.t < KUN).slice().reverse().map((h, i) => (React.createElement("button", { key: i, className: "block w-full text-right text-sm py-0.5", style: { color: C.muted }, onClick: () => setIfoda(h.natija.replace(/ /g, "").replace("−", "\u2212")) },
-                    h.ifoda,
-                    " = ",
-                    React.createElement("b", { style: { color: C.ink } }, h.natija))))),
+            React.createElement("div", { className: "flex flex-col justify-end rounded-2xl px-4 py-3", style: { flex: "1 1 auto", minHeight: 130, background: "#fff", border: `1px solid ${C.silver}` } },
                 React.createElement("div", { className: "text-right break-all", style: { fontSize: 32, color: C.ink, lineHeight: 1.2 } }, korin),
                 React.createElement("div", { className: "text-right font-extrabold", style: { fontSize: 40, color: C.navy, minHeight: 50, lineHeight: 1.2 } }, natija && natija !== korin ? "= " + natija : "")),
-            React.createElement("div", { className: "grid grid-cols-4 gap-2", style: { flex: "0 0 62%", gridTemplateRows: "repeat(5, 1fr)" } }, tugmalar.map((k) => {
-                const op = OP.includes(k);
-                const st = k === "=" ? { background: C.tape, color: C.ink }
+            React.createElement("div", { className: "flex items-center py-2" },
+                React.createElement("button", { onClick: () => setTarixOchiq((v) => !v), className: "rounded-full flex items-center justify-center", style: { width: 44, height: 44 }, "aria-label": "Tarix" }, tarixOchiq ? (React.createElement("svg", { width: "26", height: "26", viewBox: "0 0 24 24", fill: "none", stroke: C.navy, strokeWidth: "2", strokeLinecap: "round" },
+                    React.createElement("rect", { x: "5", y: "3", width: "14", height: "18", rx: "2" }),
+                    React.createElement("path", { d: "M8 7h8M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01" }))) : (React.createElement("svg", { width: "26", height: "26", viewBox: "0 0 24 24", fill: "none", stroke: C.muted, strokeWidth: "2", strokeLinecap: "round" },
+                    React.createElement("circle", { cx: "12", cy: "12", r: "9" }),
+                    React.createElement("path", { d: "M12 7v5l3 2" }))))),
+            (() => {
+                const tugmaStil = (k) => (k === "=" ? { background: C.tape, color: C.ink }
                     : k === "C" || k === "⌫" ? { background: "#E3E7EB", color: C.red }
-                        : op ? { background: C.navy, color: "#fff" }
-                            : { background: "#fff", color: C.ink, border: `1px solid ${C.silver}` };
-                return (React.createElement("button", { key: k, onClick: () => bos(k), className: "rounded-2xl font-bold", style: { ...st, fontSize: 30, height: "100%" } }, k));
-            }))));
+                        : OP.includes(k) ? { background: C.navy, color: "#fff" }
+                            : { background: "#fff", color: C.ink, border: `1px solid ${C.silver}` });
+                const Tg = (k) => (React.createElement("button", { key: k, onClick: () => bos(k), className: "rounded-2xl font-bold", style: { ...tugmaStil(k), fontSize: 30, height: "100%" } }, k));
+                if (!tarixOchiq) {
+                    return (React.createElement("div", { className: "grid grid-cols-4 gap-2", style: { flex: "0 0 62%", gridTemplateRows: "repeat(5, 1fr)" } }, tugmalar.map(Tg)));
+                }
+                const bugun = tarix.filter((h) => Date.now() - h.t < KUN);
+                return (React.createElement("div", { className: "flex gap-2", style: { flex: "0 0 62%", minHeight: 0 } },
+                    React.createElement("div", { className: "flex flex-col rounded-2xl", style: { flex: "1 1 auto", minWidth: 0, background: "#fff", border: `1px solid ${C.silver}` } },
+                        React.createElement("div", { className: "overflow-auto px-3 py-2", style: { flex: "1 1 auto", minHeight: 0 } },
+                            bugun.length === 0 && React.createElement("div", { className: "text-center py-6", style: { color: C.muted } }, "Hali hisob yo'q"),
+                            bugun.slice().reverse().map((h, i) => (React.createElement("button", { key: i, className: "block w-full text-right py-2", onClick: () => { setIfoda(h.natija.replace(/ /g, "").replace("−", "\u2212")); setTarixOchiq(false); } },
+                                React.createElement("div", { className: "font-semibold break-all", style: { fontSize: 18, color: C.ink } }, h.ifoda),
+                                React.createElement("div", { className: "font-extrabold break-all", style: { fontSize: 26, color: C.navy } },
+                                    "=",
+                                    h.natija))))),
+                        bugun.length > 0 && (React.createElement("div", { className: "p-2" },
+                            React.createElement("button", { onClick: () => setTarix([]), className: "w-full rounded-full py-3 font-semibold", style: { background: C.panel, color: C.ink } }, "Tarixni tozalash")))),
+                    React.createElement("div", { className: "grid gap-2", style: { width: "23%", gridTemplateRows: "repeat(5, 1fr)" } }, ["÷", "×", "\u2212", "+", "="].map(Tg))));
+            })()));
     };
     const HisobEkran = () => (React.createElement("div", { className: "space-y-4" },
         sozlOchiq && (React.createElement("section", { className: "rounded-xl p-3 space-y-2", style: { background: "#fff", border: `1px solid ${C.silver}` } },
